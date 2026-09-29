@@ -70,6 +70,41 @@ python run.py status
 python run.py report --date 2026-09-22    # txt/xlsx 다시 생성
 ```
 
+## 팀 공유 대시보드 (Google 시트 + Drive)
+
+같은 Google 계정을 쓰는 팀원이 함께 보고 상태를 바꾸는 시트입니다. 서버 없이 동작합니다.
+
+| 탭 | 내용 | 편집 |
+|---|---|---|
+| 전체 | 후보 한 건 = 한 행. 캡처는 Drive 링크 | 상태(드롭다운)·신고일·처리 결과·담당자·메모만 |
+| 요약 | 지역 × 상태 건수, 매체별, 월별 신고 건수 | 수식, 편집 불필요 |
+| 신고용 | B1 에서 지역 선택 → 복사용 블록 자동 생성 | B1 만 |
+
+흐름: `collect` 가 끝나면 후보 캡처를 Drive(`불법광고_캡처/수집일/지역/`)에 올리고 시트 "전체" 탭에 추가합니다.
+팀원이 시트에서 상태를 "신고함"으로 바꾸면, `pptx` / `check-alive` 실행 시 자동으로 읽어와 반영합니다.
+
+### Google 연동 설정 (최초 1회, 공유 계정으로)
+
+1. https://console.cloud.google.com 접속 → 프로젝트 새로 만들기 (이름 아무거나)
+2. "API 및 서비스 → 라이브러리" 에서 **Google Sheets API**, **Google Drive API** 두 개를 사용 설정
+3. "API 및 서비스 → OAuth 동의 화면" → 외부(또는 내부) → 앱 이름·이메일 입력 → 저장. 테스트 사용자에 공유 계정 이메일 추가
+4. "API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → OAuth 클라이언트 ID" → 애플리케이션 유형 **데스크톱 앱** → 만들기 → JSON 다운로드
+5. 다운로드한 파일을 `google/credentials.json` 으로 저장
+6. 아래를 실행하면 브라우저가 열리고 공유 계정으로 로그인 → `google/token.json` 이 생성되고 시트·Drive 폴더가 만들어집니다.
+
+```bash
+python run.py sheet-init
+```
+
+7. 출력된 `GOOGLE_SHEET_ID`, `GOOGLE_DRIVE_FOLDER_ID` 를 `.env` 에 넣고, `config.yaml` 의 `google.enabled` 를 `true` 로 바꿉니다.
+
+`google/` 폴더는 저장소에 올라가지 않습니다. 다른 PC 에서도 수집기를 돌리려면 `google/credentials.json` 과 `.env` 를 복사하고 한 번 로그인하면 됩니다.
+
+```bash
+python run.py sheet-push --date 2026-09-22   # 업로드 실패 시 재시도
+python run.py sheet-sync                     # 시트 상태를 지금 가져오기
+```
+
 ## 상태 값
 
 | 상태 | 의미 |

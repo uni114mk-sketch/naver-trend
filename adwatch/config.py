@@ -28,6 +28,10 @@ class Settings:
     naver_client_id: str = ""
     naver_client_secret: str = ""
     anthropic_api_key: str = ""
+    google_enabled: bool = False
+    google_dir: Path = Path("google")
+    sheet_id: str = ""
+    drive_folder_id: str = ""
     raw: dict = field(default_factory=dict)
 
     def region_of(self, keyword: str) -> str | None:
@@ -46,6 +50,7 @@ def load_settings(config_path: str | Path = "config.yaml", env_path: str | Path 
     report = raw.get("report", {})
     storage = raw.get("storage", {})
     own = raw.get("own_channels", {}) or {}
+    google = raw.get("google", {}) or {}
     return Settings(
         regions={k: list(v or []) for k, v in (raw.get("regions") or {}).items()},
         own_brand_keywords=list(raw.get("own_brand_keywords") or []),
@@ -65,5 +70,9 @@ def load_settings(config_path: str | Path = "config.yaml", env_path: str | Path 
         naver_client_id=os.getenv("NAVER_CLIENT_ID", ""),
         naver_client_secret=os.getenv("NAVER_CLIENT_SECRET", ""),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+        google_enabled=bool(google.get("enabled", False)),
+        google_dir=Path(google.get("dir", "google")),
+        sheet_id=os.getenv("GOOGLE_SHEET_ID", "") or str(google.get("sheet_id", "") or ""),
+        drive_folder_id=os.getenv("GOOGLE_DRIVE_FOLDER_ID", "") or str(google.get("drive_folder_id", "") or ""),
         raw=raw,
     )
