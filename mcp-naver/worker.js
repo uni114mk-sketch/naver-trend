@@ -2,7 +2,11 @@
  * 네이버 검색 MCP 서버 (Cloudflare Worker, Streamable HTTP).
  *
  * claude.ai 커스텀 커넥터로 붙여서 대시보드 페이지가 블로그·카페·지역 검색을 호출하게 한다.
- * 환경변수(Secrets): NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, ACCESS_TOKEN
+ * 환경변수(Secrets):
+ *   ACCESS_TOKEN                      URL 경로에 들어가는 열쇠
+ *   NCP_API_KEY_ID, NCP_API_KEY       NAVER API HUB 키 (2026-07-31 이후 신규 발급은 이것만 가능)
+ *   NAVER_CLIENT_ID, NAVER_CLIENT_SECRET   (구) 네이버 개발자센터 검색 API 키. 2027-06-30 까지만 동작
+ * 둘 중 한 쌍만 있으면 되고, 둘 다 있으면 API HUB 를 쓴다.
  * 엔드포인트: https://<worker>.workers.dev/mcp/<ACCESS_TOKEN>
  */
 
@@ -66,9 +70,14 @@ async function naver(env, kind, args) {
     params.set("start", String(Math.max(1, parseInt(args.start, 10) || 1)));
     params.set("sort", args.sort === "date" ? "date" : "sim");
   }
-  const r = await fetch(`https://openapi.naver.com/v1/search/${kind}.json?${params}`, {
-    headers: { "X-Naver-Client-Id": env.NAVER_CLIENT_ID, "X-Naver-Client-Secret": env.NAVER_CLIENT_SECRET },
-  });
+  const hub = !!(env.NCP_API_KEY_ID && env.NCP_API_KEY);
+  const url = hub
+    ? `https://naverapihub.apigw.ntruss.com/search/v1/${kind}?${params}`
+    : `https://openapi.naver.com/v1/search/${kind}.json?${params}`;
+  const headers = hub
+    ? { "X-NCP-APIGW-API-KEY-ID": env.NCP_API_KEY_ID, "X-NCP-APIGW-API-KEY": env.NCP_API_KEY }
+    : { "X-Naver-Client-Id": env.NAVER_CLIENT_ID, "X-Naver-Client-Secret": env.NAVER_CLIENT_SECRET };
+  const r = await fetch(url, { headers });
   if (!r.ok) throw new Error(`네이버 API ${r.status}: ${(await r.text()).slice(0, 300)}`);
   const data = await r.json();
   const items = (data.items || []).map((it) => ({
@@ -119,9 +128,13 @@ async function handle(msg, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === "/" || url.pathname === "/health") return new Response("naver-search mcp ok", { status: 200 });
+    if (url.pathname === "/" || url.pathname === "/health") {
+      const mode = env.NCP_API_KEY_ID && env.NCP_API_KEY ? "api-hub" : env.NAVER_CLIENT_ID ? "developers(legacy)" : "no-key";
+      return new Response(`naver-search mcp ok (${mode})`, { status: 200 });
+    }
     if (!env.ACCESS_TOKEN || url.pathname !== `/mcp/${env.ACCESS_TOKEN}`) return new Response("not found", { status: 404 });
-    if (!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) return json({ error: "NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 시크릿이 없습니다" }, 500);
+    const hasHub = env.NCP_API_KEY_ID && env.NCP_API_KEY, hasLegacy = env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET;
+    if (!hasHub && !hasLegacy) return json({ error: "NCP_API_KEY_ID / NCP_API_KEY (API HUB) 또는 NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 시크릿이 없습니다" }, 500);
     if (request.method === "GET") return new Response("SSE stream not supported", { status: 405, headers: { allow: "POST, DELETE" } });
     if (request.method === "DELETE") return new Response(null, { status: 204 });
     if (request.method !== "POST") return new Response("method not allowed", { status: 405 });
