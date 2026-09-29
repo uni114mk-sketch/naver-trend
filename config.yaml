@@ -69,11 +69,6 @@ classify:
 report:
   pptx_per_item_slides: true   # false면 지역별 요약 슬라이드만 생성
 
-google:
-  enabled: false                # true 면 collect 후 시트·Drive 에 자동 업로드, pptx/check-alive 전에 시트 상태 동기화
-  dir: google                   # credentials.json / token.json (또는 service_account.json) 위치
-  # sheet_id / drive_folder_id 는 .env 의 GOOGLE_SHEET_ID / GOOGLE_DRIVE_FOLDER_ID 로도 지정 가능
-
 storage:
   db_path: adwatch.db
   output_dir: output

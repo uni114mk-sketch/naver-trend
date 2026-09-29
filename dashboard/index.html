@@ -1,0 +1,535 @@
+<title>불법광고 신고 관리</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 상단 고정 바 + 요약(숫자·지역표) + 필터 + 건별 카드 목록. 한 화면에서 훑고 처리하는 업무용 UI. */
+:root {
+  --bg: #f3f5f7; --panel: #ffffff; --panel-2: #eaeef2; --line: #d5dbe2; --line-strong: #b9c2cc;
+  --fg: #16202a; --fg-2: #4e5b68; --fg-3: #7b8794;
+  --accent: #0f6f7a; --accent-fg: #ffffff; --accent-soft: #d9eef0;
+  --cand: #b7791f; --cand-soft: #fff3d6;
+  --manual: #b3413b; --manual-soft: #fde4e1;
+  --reported: #2b63b8; --reported-soft: #dfe9fb;
+  --deleted: #2e7d4f; --deleted-soft: #dcf2e4;
+  --alive: #616e7c; --alive-soft: #e6eaee;
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+  --radius: 6px; --shadow: 0 1px 2px rgba(22,32,42,.06), 0 4px 14px rgba(22,32,42,.05);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12181f; --panel: #1a222b; --panel-2: #222c37; --line: #2e3a47; --line-strong: #43515f;
+  --fg: #e8edf2; --fg-2: #aab6c2; --fg-3: #7c8a98;
+  --accent: #4fb3bf; --accent-fg: #0c1418; --accent-soft: #163a3f;
+  --cand: #e2a53a; --cand-soft: #3a2d12;
+  --manual: #e2685f; --manual-soft: #3d1d1a;
+  --reported: #6f9ee8; --reported-soft: #172a4a;
+  --deleted: #5cbf85; --deleted-soft: #14301f;
+  --alive: #9aa7b3; --alive-soft: #2a333c;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #12181f; --panel: #1a222b; --panel-2: #222c37; --line: #2e3a47; --line-strong: #43515f;
+  --fg: #e8edf2; --fg-2: #aab6c2; --fg-3: #7c8a98;
+  --accent: #4fb3bf; --accent-fg: #0c1418; --accent-soft: #163a3f;
+  --cand: #e2a53a; --cand-soft: #3a2d12;
+  --manual: #e2685f; --manual-soft: #3d1d1a;
+  --reported: #6f9ee8; --reported-soft: #172a4a;
+  --deleted: #5cbf85; --deleted-soft: #14301f;
+  --alive: #9aa7b3; --alive-soft: #2a333c;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; }
+a { color: var(--accent); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.topbar h1 { font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.topbar .spacer { flex: 1; }
+.topbar .who { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg-2); }
+.topbar .who input { width: 110px; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+.btn { padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--panel); font-weight: 500; font-size: 13px; white-space: nowrap; }
+.btn:hover { background: var(--panel-2); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 3px 9px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 18px 40px; padding-inline: 16px; display: flex; flex-direction: column; gap: 18px; }
+.banner { padding: 10px 14px; border-radius: var(--radius); background: var(--cand-soft); color: var(--fg); border: 1px solid var(--cand); font-size: 13px; }
+.banner.err { background: var(--manual-soft); border-color: var(--manual); }
+.banner.ok { background: var(--deleted-soft); border-color: var(--deleted); }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; border-left: 4px solid var(--line-strong); cursor: pointer; }
+.tile:hover { background: var(--panel-2); }
+.tile.active { outline: 2px solid var(--accent); }
+.tile .k { font-size: 12px; color: var(--fg-2); text-transform: uppercase; letter-spacing: .04em; }
+.tile .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tile .s { font-size: 12px; color: var(--fg-3); }
+.tile.cand { border-left-color: var(--cand); } .tile.manual { border-left-color: var(--manual); }
+.tile.reported { border-left-color: var(--reported); } .tile.deleted { border-left-color: var(--deleted); } .tile.alive { border-left-color: var(--alive); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.panel > header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.panel > header h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.panel > header .hint { font-size: 12px; color: var(--fg-3); }
+.panel .body { padding: 12px 14px; }
+
+.regiontable { overflow-x: auto; }
+.regiontable table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.regiontable th, .regiontable td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.regiontable th:first-child, .regiontable td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
+.regiontable th { color: var(--fg-2); font-weight: 500; }
+.regiontable tr.clickable { cursor: pointer; }
+.regiontable tr.clickable:hover td { background: var(--panel-2); }
+.regiontable tr.active td { background: var(--accent-soft); }
+.regiontable td.zero { color: var(--fg-3); }
+.regiontable td.cand { color: var(--cand); font-weight: 600; } .regiontable td.manual { color: var(--manual); font-weight: 600; }
+
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filters select, .filters input[type=search] { padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); min-width: 0; }
+.filters input[type=search] { flex: 1 1 180px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); font-size: 12px; }
+.chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.list { display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 0; overflow: hidden; }
+.card.st-후보 { border-left: 4px solid var(--cand); } .card.st-수동확인 { border-left: 4px solid var(--manual); }
+.card.st-신고함 { border-left: 4px solid var(--reported); } .card.st-삭제됨 { border-left: 4px solid var(--deleted); }
+.card.st-유지됨, .card.st-해당없음 { border-left: 4px solid var(--alive); }
+.shot { background: var(--panel-2); position: relative; min-height: 150px; cursor: zoom-in; }
+.shot img { width: 100%; height: 100%; max-height: 260px; object-fit: cover; object-position: top; display: block; }
+.shot .none { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-3); font-size: 12px; }
+.card .main { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card .row1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.badge { font-family: var(--font-mono); font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--panel-2); color: var(--fg-2); }
+.pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+.pill.후보 { background: var(--cand-soft); color: var(--cand); } .pill.수동확인 { background: var(--manual-soft); color: var(--manual); }
+.pill.신고함 { background: var(--reported-soft); color: var(--reported); } .pill.삭제됨 { background: var(--deleted-soft); color: var(--deleted); }
+.pill.유지됨, .pill.해당없음 { background: var(--alive-soft); color: var(--alive); }
+.conf { font-size: 11px; color: var(--fg-3); }
+.card .clinic { font-size: 15px; font-weight: 600; }
+.card .viol { font-size: 13px; color: var(--fg-2); }
+.card .summary { font-size: 13px; }
+.card .url { font-family: var(--font-mono); font-size: 12px; word-break: break-all; }
+.card .meta { font-size: 12px; color: var(--fg-3); display: flex; gap: 12px; flex-wrap: wrap; }
+.card .actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.card .actions .sep { width: 1px; height: 18px; background: var(--line); }
+.card .memo { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--fg-2); }
+.card .memo input { flex: 1 1 200px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); font-size: 12px; min-width: 0; }
+.card .memo input[type=date] { flex: 0 0 auto; }
+.confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--manual); }
+
+.empty { text-align: center; padding: 40px 16px; color: var(--fg-2); }
+.empty h3 { margin: 0 0 8px; font-size: 16px; color: var(--fg); }
+.empty code { font-family: var(--font-mono); background: var(--panel-2); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.dropzone { border: 2px dashed var(--line-strong); border-radius: var(--radius); padding: 22px; text-align: center; color: var(--fg-2); background: var(--panel); }
+.dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.progress { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); }
+
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(8,12,16,.82); display: flex; flex-direction: column; }
+.overlay .bar { display: flex; gap: 10px; align-items: center; padding: 10px 16px; color: #fff; padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+.overlay .bar .spacer { flex: 1; }
+.overlay .img { flex: 1; overflow: auto; text-align: center; }
+.overlay .img img { max-width: min(100%, 900px); display: inline-block; }
+.copybox { width: 100%; min-height: 220px; font-family: var(--font-mono); font-size: 12px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); white-space: pre; overflow: auto; }
+.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 13px; z-index: 60; box-shadow: var(--shadow); }
+.runs { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.runs .run { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.runs .run button { border: 0; background: none; color: var(--fg-3); padding: 0 2px; }
+.runs .run button:hover { color: var(--manual); }
+.meter { font-size: 12px; color: var(--fg-3); }
+
+@media (max-width: 640px) {
+  .card { grid-template-columns: 1fr; }
+  .shot img { max-height: 180px; }
+  .topbar .who input { width: 90px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="topbar">
+  <h1>불법광고 신고 관리</h1>
+  <span class="meter" id="meter"></span>
+  <span class="spacer"></span>
+  <label class="who">담당자 <input id="who" placeholder="이름" autocomplete="off"></label>
+  <button class="btn" id="btnCopy">신고용 텍스트</button>
+  <button class="btn" id="btnExport">상태 내보내기</button>
+  <button class="btn primary" id="btnImport">수집 결과 가져오기</button>
+  <input type="file" id="fileInput" accept="application/json,.json" hidden>
+</div>
+
+<div class="wrap">
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section class="panel">
+    <header><h2>지역별 현황</h2><span class="hint">행을 누르면 해당 지역만 봅니다</span><span class="spacer"></span>
+      <span class="runs" id="runs"></span></header>
+    <div class="body regiontable" id="regiontable"></div>
+  </section>
+
+  <section class="panel">
+    <header><h2>게시글</h2><span class="hint" id="countHint"></span></header>
+    <div class="body">
+      <div class="filters">
+        <select id="fRegion"><option value="">모든 지역</option></select>
+        <select id="fRun"><option value="">모든 수집일</option></select>
+        <div class="chips" id="fMedium">
+          <button class="chip on" data-v="블로그">블로그</button>
+          <button class="chip on" data-v="카페">카페</button>
+          <button class="chip on" data-v="플레이스">플레이스</button>
+        </div>
+        <div class="chips" id="fStatus">
+          <button class="chip on" data-v="후보">후보</button>
+          <button class="chip on" data-v="수동확인">수동확인</button>
+          <button class="chip" data-v="신고함">신고함</button>
+          <button class="chip" data-v="삭제됨">삭제됨</button>
+          <button class="chip" data-v="유지됨">유지됨</button>
+          <button class="chip" data-v="해당없음">해당없음</button>
+        </div>
+        <input type="search" id="fText" placeholder="병원명·URL·근거 검색">
+      </div>
+    </div>
+    <div class="body list" id="list"></div>
+  </section>
+
+  <section class="panel" id="importPanel" hidden>
+    <header><h2>수집 결과 가져오기</h2><span class="hint">수집 PC에서 만든 dashboard_날짜.json 파일</span><span class="spacer"></span><button class="btn small" id="btnCloseImport">닫기</button></header>
+    <div class="body">
+      <div class="dropzone" id="dropzone">여기에 <b>dashboard_YYYY-MM-DD.json</b> 파일을 끌어다 놓거나 <button class="btn small" id="btnPick">파일 선택</button></div>
+      <p class="progress" id="importProgress"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="copyPanel" hidden>
+    <header><h2>신고용 텍스트</h2><span class="hint">상태가 후보·수동확인인 건만 포함</span><span class="spacer"></span>
+      <select id="cRegion"></select><select id="cRun"><option value="">모든 수집일</option></select>
+      <button class="btn small primary" id="btnDoCopy">복사</button>
+      <button class="btn small" id="btnMarkAll">이 목록 전체 신고함 처리</button>
+      <button class="btn small" id="btnCloseCopy">닫기</button></header>
+    <div class="body"><div class="copybox" id="copybox"></div></div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="bar"><span id="ovTitle"></span><span class="spacer"></span><a id="ovOpen" class="btn small" target="_blank" rel="noopener">원문 열기</a><button class="btn small" id="ovClose">닫기</button></div>
+  <div class="img"><img id="ovImg" alt="캡처"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const MEDIA = ['블로그', '카페', '플레이스'];
+  const STATUSES = ['후보', '수동확인', '신고함', '삭제됨', '유지됨', '해당없음'];
+  const OPEN = new Set(['후보', '수동확인']);
+  const $ = (s) => document.querySelector(s);
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  let db = null, assets = null, downloads = null, unsub = null;
+  let docs = {};            // docId -> {run_date, region, items:{id:{...}}}
+  let items = [];           // 평면화된 목록
+  const filter = { region: '', run: '', media: new Set(MEDIA), status: new Set(['후보', '수동확인']), text: '' };
+  let readOnly = false;
+
+  // ---------- 저장소 연결 ----------
+  function banner(msg, cls) { const b = $('#banner'); b.textContent = msg; b.className = 'banner ' + (cls || ''); b.hidden = !msg; }
+  function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+
+  window.claude?.use('db').then((d) => {
+    db = d;
+    if (!db) { banner('공유 저장소에 연결할 수 없어 읽기 전용으로 표시합니다. claude.ai에 로그인한 상태로 다시 열어 주세요.', 'err'); readOnly = true; render(); return; }
+    unsub = db.collection('runs').onSnapshot((snap) => {
+      docs = {};
+      snap.docs.forEach((s) => { docs[s.id] = s.data(); });
+      flatten(); render();
+    }, (e) => banner('저장소 오류: ' + (e && e.code || '') + ' ' + (e && e.message || ''), 'err'));
+  });
+  window.claude?.use('assets').then((a) => { assets = a; refreshMeter(); });
+  window.claude?.use('downloads').then((d) => { downloads = d; $('#btnExport').hidden = !d; });
+
+  async function refreshMeter() {
+    if (!assets) return;
+    try { const r = await assets.list(); const mb = (n) => (n / 1048576).toFixed(0);
+      $('#meter').textContent = `캡처 저장 ${r.usage.files}개 · ${mb(r.usage.bytes)} / ${mb(r.usage.maxBytes)} MB`; } catch (e) { /* 표시만 생략 */ }
+  }
+
+  function flatten() {
+    items = [];
+    for (const [docId, d] of Object.entries(docs)) {
+      const its = (d && d.items) || {};
+      for (const [id, it] of Object.entries(its)) items.push(Object.assign({ docId, id, run_date: d.run_date, region: d.region }, it));
+    }
+    const mo = (m) => MEDIA.indexOf(m);
+    items.sort((a, b) => (b.run_date || '').localeCompare(a.run_date || '') || (a.region || '').localeCompare(b.region, 'ko') || mo(a.medium) - mo(b.medium) || (a.seq || 0) - (b.seq || 0));
+  }
+
+  // ---------- 렌더 ----------
+  function counts(list) { const c = {}; STATUSES.forEach((s) => c[s] = 0); list.forEach((i) => { c[i.status] = (c[i.status] || 0) + 1; }); return c; }
+
+  function render() {
+    renderTiles(); renderRegionTable(); renderSelects(); renderList(); renderRuns();
+  }
+
+  function renderTiles() {
+    const c = counts(items);
+    const week = items.filter((i) => i.reported_at && i.reported_at >= daysAgo(7)).length;
+    const defs = [['후보', 'cand', '확인 후 신고'], ['수동확인', 'manual', '본문 직접 확인'], ['신고함', 'reported', `최근 7일 ${week}건`], ['삭제됨', 'deleted', '신고 후 삭제 확인'], ['유지됨', 'alive', '신고 후에도 남아 있음']];
+    $('#tiles').innerHTML = defs.map(([s, cls, sub]) => `<div class="tile ${cls} ${filter.status.size === 1 && filter.status.has(s) ? 'active' : ''}" data-s="${s}"><div class="k">${s}</div><div class="v">${c[s] || 0}</div><div class="s">${sub}</div></div>`).join('');
+    $('#tiles').querySelectorAll('.tile').forEach((t) => t.onclick = () => { const s = t.dataset.s; filter.status = new Set([s]); syncChips(); renderList(); renderTiles(); });
+  }
+
+  function renderRegionTable() {
+    const by = {};
+    items.forEach((i) => { const r = by[i.region] || (by[i.region] = counts([])); r[i.status] = (r[i.status] || 0) + 1; r.total = (r.total || 0) + 1; });
+    const regions = Object.keys(by).sort((a, b) => (by[b]['후보'] + by[b]['수동확인']) - (by[a]['후보'] + by[a]['수동확인']) || a.localeCompare(b, 'ko'));
+    if (!regions.length) { $('#regiontable').innerHTML = '<div class="empty">아직 수집 결과가 없습니다.</div>'; return; }
+    const head = '<tr><th>지역</th>' + STATUSES.map((s) => `<th>${s}</th>`).join('') + '<th>합계</th></tr>';
+    const rows = regions.map((r) => `<tr class="clickable ${filter.region === r ? 'active' : ''}" data-r="${r}"><td>${r}</td>` +
+      STATUSES.map((s) => `<td class="${by[r][s] ? (s === '후보' ? 'cand' : s === '수동확인' ? 'manual' : '') : 'zero'}">${by[r][s] || 0}</td>`).join('') + `<td>${by[r].total}</td></tr>`).join('');
+    $('#regiontable').innerHTML = `<table>${head}${rows}</table>`;
+    $('#regiontable').querySelectorAll('tr.clickable').forEach((tr) => tr.onclick = () => { filter.region = filter.region === tr.dataset.r ? '' : tr.dataset.r; $('#fRegion').value = filter.region; renderRegionTable(); renderList(); });
+  }
+
+  function renderSelects() {
+    const regions = [...new Set(items.map((i) => i.region))].sort((a, b) => a.localeCompare(b, 'ko'));
+    const runs = [...new Set(items.map((i) => i.run_date))].sort().reverse();
+    const fill = (sel, vals, first) => { const cur = sel.value; sel.innerHTML = (first ? `<option value="">${first}</option>` : '') + vals.map((v) => `<option value="${v}">${v}</option>`).join(''); sel.value = vals.includes(cur) || cur === '' ? cur : ''; };
+    fill($('#fRegion'), regions, '모든 지역'); fill($('#fRun'), runs, '모든 수집일');
+    fill($('#cRegion'), regions, ''); fill($('#cRun'), runs, '모든 수집일');
+    $('#fRegion').value = filter.region; $('#fRun').value = filter.run;
+  }
+
+  function renderRuns() {
+    const runs = {};
+    items.forEach((i) => { const r = runs[i.run_date] || (runs[i.run_date] = { n: 0, open: 0 }); r.n++; if (OPEN.has(i.status)) r.open++; });
+    $('#runs').innerHTML = Object.keys(runs).sort().reverse().map((d) => `<span class="run">${d} <b>${runs[d].n}</b>${runs[d].open ? ` <span style="color:var(--cand)">미처리 ${runs[d].open}</span>` : ''}${readOnly ? '' : ` <button title="이 수집일 데이터 삭제" data-d="${d}">✕</button>`}</span>`).join('');
+    $('#runs').querySelectorAll('button').forEach((b) => b.onclick = () => confirmDeleteRun(b.dataset.d, b));
+  }
+
+  function visible() {
+    const q = filter.text.trim().toLowerCase();
+    return items.filter((i) => (!filter.region || i.region === filter.region) && (!filter.run || i.run_date === filter.run)
+      && filter.media.has(i.medium) && filter.status.has(i.status)
+      && (!q || [i.clinic, i.url, i.summary, i.violation, i.memo, i.assignee].join(' ').toLowerCase().includes(q)));
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  function renderList() {
+    const list = visible();
+    $('#countHint').textContent = items.length ? `${list.length}건 표시 / 전체 ${items.length}건` : '';
+    if (!items.length) {
+      $('#list').innerHTML = `<div class="empty"><h3>아직 수집 결과가 없습니다</h3>수집 PC에서 <code>python run.py collect</code> 를 실행하면 <code>output/날짜/dashboard_날짜.json</code> 이 생깁니다.<br>오른쪽 위 <b>수집 결과 가져오기</b>로 그 파일을 올리면 여기에 후보 목록이 나타납니다.</div>`;
+      return;
+    }
+    if (!list.length) { $('#list').innerHTML = '<div class="empty">조건에 맞는 게시글이 없습니다.</div>'; return; }
+    $('#list').innerHTML = list.slice(0, 300).map(cardHTML).join('') + (list.length > 300 ? `<div class="empty">${list.length - 300}건 더 있습니다. 필터를 좁혀 주세요.</div>` : '');
+    bindCards();
+  }
+
+  function cardHTML(i) {
+    const key = `${i.docId}::${i.id}`;
+    const shot = i.shot ? `<img src="/_blob/${esc(i.shot)}" loading="lazy" alt="캡처">` : '<div class="none">캡처 없음</div>';
+    const conf = i.confidence ? `<span class="conf">확신도 ${esc(i.confidence)}</span>` : '';
+    const act = readOnly ? '' : `
+      <div class="actions">
+        ${OPEN.has(i.status) ? `<button class="btn small primary" data-act="신고함">신고함으로</button>` : ''}
+        ${i.status === '신고함' || i.status === '유지됨' ? `<button class="btn small" data-act="삭제됨">삭제 확인</button><button class="btn small" data-act="유지됨">아직 남아 있음</button>` : ''}
+        ${i.status !== '해당없음' && OPEN.has(i.status) ? `<button class="btn small" data-act="해당없음">신고 대상 아님</button>` : ''}
+        ${!OPEN.has(i.status) ? `<button class="btn small" data-act="후보">후보로 되돌리기</button>` : ''}
+      </div>
+      <div class="memo">
+        <span>신고일</span><input type="date" data-f="reported_at" value="${esc(i.reported_at || '')}">
+        <span>담당</span><input data-f="assignee" value="${esc(i.assignee || '')}" placeholder="이름" style="flex:0 0 90px">
+        <input data-f="memo" value="${esc(i.memo || '')}" placeholder="메모 (접수번호, 회신 내용 등)">
+      </div>`;
+    return `<article class="card st-${esc(i.status)}" data-key="${esc(key)}">
+      <div class="shot" data-zoom>${shot}</div>
+      <div class="main">
+        <div class="row1"><span class="badge">${esc(i.region)}_${esc(i.medium)}_${String(i.seq || 0).padStart(2, '0')}</span><span class="pill ${esc(i.status)}">${esc(i.status)}</span>${conf}<span class="badge">${esc(i.run_date)}</span></div>
+        <div class="clinic">${esc(i.clinic) || '<span style="color:var(--fg-3)">병원 미상</span>'}</div>
+        <div class="viol">${esc(i.violation)}</div>
+        ${i.summary ? `<div class="summary">${esc(i.summary)}</div>` : ''}
+        <a class="url" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>
+        <div class="meta"><span>키워드 ${esc(i.keyword)}</span>${i.author ? `<span>작성자 ${esc(i.author)}</span>` : ''}${i.updated_at ? `<span>수정 ${esc(i.updated_at)}${i.updated_by ? ' · ' + esc(i.updated_by) : ''}</span>` : ''}</div>
+        ${act}
+      </div></article>`;
+  }
+
+  function bindCards() {
+    $('#list').querySelectorAll('.card').forEach((card) => {
+      const [docId, id] = card.dataset.key.split('::');
+      card.querySelector('[data-zoom]').onclick = () => openOverlay(docId, id);
+      card.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => setStatus(docId, id, b.dataset.act));
+      card.querySelectorAll('[data-f]').forEach((inp) => {
+        let t; const save = () => { clearTimeout(t); t = setTimeout(() => patch(docId, id, { [inp.dataset.f]: inp.value }), 600); };
+        inp.addEventListener('input', save); inp.addEventListener('change', save);
+      });
+    });
+  }
+
+  // ---------- 쓰기 ----------
+  function who() { return $('#who').value.trim(); }
+  async function patch(docId, id, fields) {
+    if (!db || readOnly) return;
+    const it = (docs[docId] && docs[docId].items || {})[id] || {};
+    const changed = Object.keys(fields).some((k) => (it[k] || '') !== (fields[k] || ''));
+    if (!changed) return;
+    const body = Object.assign({}, fields, { updated_at: today(), updated_by: who() });
+    try { await db.doc('runs/' + docId).update({ items: { [id]: body } }); }
+    catch (e) { if (e && e.code === 'invalid_argument') { readOnly = true; banner('이 계정은 편집 권한이 없어 읽기 전용입니다.', 'err'); render(); } else toast('저장 실패: ' + (e && e.code || '')); }
+  }
+  async function setStatus(docId, id, status) {
+    const it = (docs[docId] && docs[docId].items || {})[id] || {};
+    const f = { status };
+    if (status === '신고함' && !it.reported_at) f.reported_at = today();
+    if (status === '신고함' && !it.assignee && who()) f.assignee = who();
+    if (status === '삭제됨') f.result = '삭제 확인';
+    await patch(docId, id, f);
+    toast(`${status} 처리`);
+  }
+
+  function confirmDeleteRun(d, btn) {
+    const span = btn.parentElement;
+    span.innerHTML = `<span class="confirm">${d} 수집분 삭제? <button class="btn small" data-yes>삭제</button><button class="btn small" data-no>취소</button></span>`;
+    span.querySelector('[data-no]').onclick = renderRuns;
+    span.querySelector('[data-yes]').onclick = async () => {
+      const ids = Object.keys(docs).filter((k) => docs[k].run_date === d);
+      for (const k of ids) { try { await db.doc('runs/' + k).delete(); } catch (e) { toast('삭제 실패'); return; } }
+      toast(`${d} 수집분 ${ids.length}개 지역 삭제`);
+    };
+  }
+
+  // ---------- 가져오기 ----------
+  function dataURLtoBlob(u) {
+    const [head, b64] = u.split(','); const mime = (head.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+    const bin = atob(b64); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+  async function importFile(file) {
+    const prog = $('#importProgress');
+    if (!db || readOnly) { prog.textContent = '편집 권한이 없어 가져올 수 없습니다.'; return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (e) { prog.textContent = 'JSON 파일이 아닙니다.'; return; }
+    if (!data || !Array.isArray(data.groups)) { prog.textContent = 'dashboard_날짜.json 형식이 아닙니다.'; return; }
+    let added = 0, skipped = 0, failedShots = 0;
+    for (const g of data.groups) {
+      const existing = (docs[g.doc_id] && docs[g.doc_id].items) || {};
+      const fresh = {};
+      for (const it of g.items || []) {
+        if (existing[it.id]) { skipped++; continue; }
+        prog.textContent = `${g.region} 처리 중… (추가 ${added}, 건너뜀 ${skipped})`;
+        let shot = '';
+        if (it.thumb && assets) {
+          try { shot = (await assets.upload(dataURLtoBlob(it.thumb))).id; } catch (e) { failedShots++; }
+        }
+        fresh[it.id] = { url: it.url, medium: it.medium, seq: it.seq || 0, clinic: it.clinic || '', violation: it.violation || '', confidence: it.confidence || '',
+          summary: it.summary || '', basis: it.basis || '', keyword: it.keyword || '', author: it.author || '', title: it.title || '',
+          status: it.status || '후보', reported_at: '', result: '', assignee: '', memo: '', shot, imported_at: today() };
+        added++;
+      }
+      if (Object.keys(fresh).length) {
+        try {
+          if (docs[g.doc_id]) await db.doc('runs/' + g.doc_id).update({ items: fresh });
+          else await db.doc('runs/' + g.doc_id).set({ run_date: g.run_date, region: g.region, items: fresh });
+        } catch (e) { prog.textContent = `${g.region} 저장 실패: ${e && e.code} ${e && e.message || ''}`; return; }
+      }
+    }
+    prog.textContent = `완료: ${added}건 추가, ${skipped}건은 이미 있어 건너뜀` + (failedShots ? `, 캡처 ${failedShots}장 업로드 실패(용량 초과 가능)` : '');
+    refreshMeter();
+  }
+
+  // ---------- 신고용 텍스트 ----------
+  function buildBlock(region, run) {
+    const pick = items.filter((i) => i.region === region && OPEN.has(i.status) && (!run || i.run_date === run));
+    const lines = [`# ${region} (${run || today() + ' 기준'})`, ''];
+    let total = 0;
+    for (const m of MEDIA) {
+      const g = pick.filter((i) => i.medium === m);
+      if (!g.length) continue;
+      lines.push(`■ ${m} (${g.length}건)`);
+      g.forEach((i, n) => {
+        total++;
+        lines.push(`${n + 1}. ${i.url}`);
+        if (i.clinic) lines.push(`   - 특정 병원: ${i.clinic}`);
+        lines.push(`   - 유형: ${i.violation}${i.confidence ? ` [확신도 ${i.confidence}]` : ''}`);
+        if (i.summary) lines.push(`   - 근거: ${i.summary}`);
+        lines.push(`   - 캡처: ${i.region}_${i.medium}_${String(i.seq || 0).padStart(2, '0')}.png (${i.run_date})`);
+      });
+      lines.push('');
+    }
+    if (!total) lines.push('(신고 후보 없음)');
+    return { text: lines.join('\n').trimEnd() + '\n', picked: pick };
+  }
+  function refreshCopy() { const r = $('#cRegion').value; $('#copybox').textContent = r ? buildBlock(r, $('#cRun').value).text : '지역을 선택하세요'; }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); toast('복사했습니다'); }
+    catch (e) { const range = document.createRange(); range.selectNodeContents($('#copybox')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range); toast('복사가 막혀 있어 텍스트를 선택했습니다. Ctrl+C 를 누르세요'); }
+  }
+
+  // ---------- 내보내기 ----------
+  async function exportStatus() {
+    if (!downloads) return;
+    const rows = items.map((i) => ({ url: i.url, region: i.region, medium: i.medium, seq: i.seq, run_date: i.run_date, clinic: i.clinic, violation: i.violation,
+      confidence: i.confidence, summary: i.summary, status: i.status, reported_at: i.reported_at || '', result: i.result || '', assignee: i.assignee || '', memo: i.memo || '' }));
+    try { await downloads.save({ filename: `status_${today()}.json`, data: JSON.stringify({ exported_at: new Date().toISOString(), items: rows }, null, 1) }); toast('저장했습니다'); }
+    catch (e) { if (e && e.code !== 'declined') toast('내보내기 실패: ' + (e && e.code || '')); }
+  }
+
+  // ---------- 오버레이 ----------
+  function openOverlay(docId, id) {
+    const it = (docs[docId] && docs[docId].items || {})[id]; if (!it) return;
+    $('#ovTitle').textContent = `${docs[docId].region} · ${it.medium} · ${it.clinic || '병원 미상'}`;
+    $('#ovOpen').href = it.url; $('#ovImg').src = it.shot ? '/_blob/' + it.shot : ''; $('#ovImg').hidden = !it.shot;
+    $('#overlay').hidden = false;
+  }
+
+  // ---------- 이벤트 ----------
+  function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
+  function syncChips() { $('#fStatus').querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', filter.status.has(c.dataset.v))); }
+  const chipToggle = (sel, set) => $(sel).querySelectorAll('.chip').forEach((c) => c.onclick = () => { c.classList.toggle('on'); c.classList.contains('on') ? set.add(c.dataset.v) : set.delete(c.dataset.v); renderList(); renderTiles(); });
+  chipToggle('#fMedium', filter.media); chipToggle('#fStatus', filter.status);
+  $('#fRegion').onchange = (e) => { filter.region = e.target.value; renderRegionTable(); renderList(); };
+  $('#fRun').onchange = (e) => { filter.run = e.target.value; renderList(); };
+  $('#fText').oninput = (e) => { filter.text = e.target.value; renderList(); };
+  $('#btnImport').onclick = () => { $('#importPanel').hidden = false; $('#importPanel').scrollIntoView({ behavior: 'smooth' }); };
+  $('#btnCloseImport').onclick = () => { $('#importPanel').hidden = true; };
+  $('#btnPick').onclick = () => $('#fileInput').click();
+  $('#fileInput').onchange = (e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
+  const dz = $('#dropzone');
+  dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('over'); }; dz.ondragleave = () => dz.classList.remove('over');
+  dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) importFile(f); };
+  $('#btnCopy').onclick = () => { $('#copyPanel').hidden = false; if (filter.region) $('#cRegion').value = filter.region; refreshCopy(); $('#copyPanel').scrollIntoView({ behavior: 'smooth' }); };
+  $('#btnCloseCopy').onclick = () => { $('#copyPanel').hidden = true; };
+  $('#cRegion').onchange = refreshCopy; $('#cRun').onchange = refreshCopy;
+  $('#btnDoCopy').onclick = () => copyText($('#copybox').textContent);
+  $('#btnMarkAll').onclick = async () => {
+    const r = $('#cRegion').value; if (!r) return;
+    const { picked } = buildBlock(r, $('#cRun').value);
+    const b = $('#btnMarkAll');
+    if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = `${picked.length}건을 신고함 처리합니다. 다시 누르면 실행`; setTimeout(() => { b.dataset.armed = ''; b.textContent = '이 목록 전체 신고함 처리'; }, 4000); return; }
+    b.dataset.armed = ''; b.textContent = '이 목록 전체 신고함 처리';
+    for (const i of picked) await setStatus(i.docId, i.id, '신고함');
+    refreshCopy();
+  };
+  $('#btnExport').onclick = exportStatus;
+  $('#ovClose').onclick = () => { $('#overlay').hidden = true; $('#ovImg').src = ''; };
+  $('#overlay').onclick = (e) => { if (e.target === $('#overlay') || e.target.classList.contains('img')) $('#ovClose').click(); };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#ovClose').click(); });
+  try { $('#who').value = localStorage.getItem('adwatch_who') || ''; } catch (e) { /* 저장소 사용 불가 */ }
+  $('#who').oninput = () => { try { localStorage.setItem('adwatch_who', $('#who').value); } catch (e) { /* 무시 */ } };
+
+  render();
+})();
+</script>
