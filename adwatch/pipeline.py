@@ -120,6 +120,8 @@ class Pipeline:
         f.basis = ", ".join(v.identification_basis + v.ad_signals)
         if self._mentions_own_brand(v.clinic_name):
             f.status = STATUS_OWN
+        elif not v.clinic_identified and v.confidence == "낮음" and "직접 확인" in (v.summary or ""):
+            f.status, f.violation_type = STATUS_MANUAL, "수동 확인 필요"
         elif v.violation_type == "해당없음" or not v.clinic_identified:
             f.status = STATUS_NONE
         else:
@@ -189,8 +191,7 @@ class Pipeline:
 class LiveBackends:
     """실제 네이버 + Claude 연동. with 문으로 사용 (브라우저 수명 관리)."""
 
-    def __init__(self, settings: Settings):
-        from .classifier import Classifier
+    def __init__(self, settings: Settings, use_ai: bool = True):
         from .collectors.search_tab import SearchTabCollector
         self.s = settings
         self.tab = SearchTabCollector(delay_seconds=settings.delay_seconds)
@@ -200,7 +201,14 @@ class LiveBackends:
             self.api = NaverSearchAPI(settings.naver_client_id, settings.naver_client_secret)
         if not settings.use_search_tab and self.api is None:
             raise ValueError("use_search_tab=false 이면 네이버 검색 API 키가 필요합니다.")
-        self.clf = Classifier(model=settings.model, effort=settings.effort, api_key=settings.anthropic_api_key)
+        if use_ai and settings.anthropic_api_key:
+            from .classifier import Classifier
+            self.clf = Classifier(model=settings.model, effort=settings.effort, api_key=settings.anthropic_api_key)
+        else:
+            from .regex_classifier import RegexClassifier
+            all_keywords = [k for ks in settings.regions.values() for k in ks]
+            self.clf = RegexClassifier(all_keywords)
+            log.info("Claude API 키 없음 또는 --no-ai: 병원명 정규식 판정만 수행")
 
     def __enter__(self):
         self.tab.__enter__()

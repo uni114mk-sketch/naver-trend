@@ -1,6 +1,6 @@
 """불법 의료광고 탐지·정리 CLI.
 
-  python run.py collect [--region 강남 잠실] [--date 2026-09-22] [--limit 5]
+  python run.py collect [--region 강남 잠실] [--date 2026-09-22] [--limit 5] [--no-ai]
   python run.py report --date 2026-09-22          # 신고용.txt / 전체.xlsx 다시 생성
   python run.py mark-reported URL [URL ...]        # 신고 완료 표시
   python run.py import-status output/2026-09-22/전체.xlsx   # 엑셀에서 편집한 상태 반영
@@ -24,12 +24,16 @@ from adwatch.pipeline import LiveBackends, Pipeline
 
 
 def cmd_collect(a, s, store):
-    with LiveBackends(s) as b:
+    with LiveBackends(s, use_ai=not a.no_ai) as b:
         results = Pipeline(s, store, b).run(run_date=a.date, regions=a.region, limit=a.limit)
     run_date = a.date or datetime.now().strftime("%Y-%m-%d")
     c = Counter(f.status for f in results)
     print(f"\n처리 {len(results)}건: " + ", ".join(f"{k} {v}" for k, v in c.items()))
     print(f"결과: {s.output_dir / run_date}")
+    from adwatch.dashboard_doc import region_id, write_doc
+    for region in sorted({f.region for f in results}):
+        p = write_doc(store, run_date, region, s.regions.get(region, []), s.output_dir / run_date / region)
+        print(f"대시보드 문서: {p}  (results/{region_id(region)})")
 
 
 def cmd_report(a, s, store):
@@ -101,6 +105,7 @@ def main(argv=None):
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("collect"); c.add_argument("--region", nargs="*"); c.add_argument("--date"); c.add_argument("--limit", type=int)
+    c.add_argument("--no-ai", action="store_true", help="Claude API 없이 병원명 정규식 판정만")
     c.set_defaults(fn=cmd_collect)
     r = sub.add_parser("report"); r.add_argument("--date", required=True); r.set_defaults(fn=cmd_report)
     m = sub.add_parser("mark-reported"); m.add_argument("urls", nargs="+"); m.add_argument("--date"); m.set_defaults(fn=cmd_mark)
