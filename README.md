@@ -74,8 +74,8 @@ python run.py report --date 2026-09-22    # txt/xlsx 다시 생성
 
 https://claude.ai/artifact/NHV8veMWU9GR49rsHjkkd8 (소스: `dashboard/index.html`)
 
-지점을 고르고 **실행**을 누르면 이 계정에 연결된 네이버 검색 커넥터(PlayMCP)로 그 지점의 키워드를 검색해
-URL 을 네 탭에 나눠 보여 줍니다. 팀원이 URL 을 열어 확인하고 **신고함**을 누르면 기록이 공유됩니다.
+지점을 고르고 **실행**을 누르면 이 계정에 연결된 네이버 검색 커넥터(`NaverSearch`, 설치는 `mcp-naver/README.md`)로
+그 지점의 키워드를 검색해 URL 을 네 탭에 나눠 보여 줍니다. 팀원이 URL 을 열어 확인하고 **신고함**을 누르면 기록이 공유됩니다.
 
 | 탭 | 내용 |
 |---|---|

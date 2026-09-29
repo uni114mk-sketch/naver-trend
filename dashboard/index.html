@@ -127,8 +127,8 @@ h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
   'use strict';
   const REGIONS = [{"id": "bf91277b21", "name": "강남", "keywords": ["강남피부과"]}, {"id": "546eb949b1", "name": "선릉", "keywords": ["선릉피부과"]}, {"id": "fa42e37fe4", "name": "잠실", "keywords": ["잠실피부과"]}, {"id": "fb071c54ca", "name": "왕십리", "keywords": ["왕십리피부과"]}, {"id": "e34ece8b8e", "name": "명동", "keywords": ["명동피부과"]}, {"id": "c52a6e5d6c", "name": "홍대신촌", "keywords": ["홍대신촌피부과", "홍대피부과", "신촌피부과"]}, {"id": "0fd350bf45", "name": "영등포", "keywords": ["영등포피부과"]}, {"id": "3a30cb67cb", "name": "마곡", "keywords": ["마곡피부과"]}, {"id": "91cb47e210", "name": "건대", "keywords": ["건대피부과"]}, {"id": "68c8dd7ffb", "name": "구로", "keywords": ["구로피부과"]}, {"id": "8a31e1ce84", "name": "여의도", "keywords": ["여의도피부과"]}, {"id": "99277c61c8", "name": "천호", "keywords": ["천호피부과"]}, {"id": "f1f35bf12b", "name": "목동", "keywords": ["목동피부과"]}, {"id": "ce8776d868", "name": "창동", "keywords": ["창동피부과"]}, {"id": "6e967544d0", "name": "노원", "keywords": ["노원피부과"]}, {"id": "c69da27153", "name": "상봉망우", "keywords": ["상봉망우피부과", "상봉피부과", "망우피부과"]}, {"id": "08ccbbe912", "name": "수원", "keywords": ["수원피부과"]}, {"id": "63cfc188c0", "name": "판교", "keywords": ["판교피부과"]}, {"id": "fd653bcbfb", "name": "광교", "keywords": ["광교피부과"]}, {"id": "ad2166ef70", "name": "광명", "keywords": ["광명피부과"]}, {"id": "2146f149b4", "name": "산본", "keywords": ["산본피부과"]}, {"id": "894682d981", "name": "부천", "keywords": ["부천피부과"]}, {"id": "e5e1de8ef9", "name": "일산", "keywords": ["일산피부과"]}, {"id": "db0d82edd0", "name": "다산", "keywords": ["다산피부과"]}, {"id": "f9f7f4282f", "name": "김포", "keywords": ["김포피부과"]}, {"id": "6da3abcd38", "name": "인천검단", "keywords": ["인천검단피부과", "검단피부과", "인천피부과"]}, {"id": "cd791d3412", "name": "동탄", "keywords": ["동탄피부과"]}, {"id": "f560dc603d", "name": "평택", "keywords": ["평택피부과"]}, {"id": "a730c37194", "name": "안양", "keywords": ["안양피부과"]}, {"id": "f0371e158b", "name": "부평", "keywords": ["부평피부과"]}, {"id": "d26daca828", "name": "안산", "keywords": ["안산피부과"]}, {"id": "6ea0267a4d", "name": "의정부", "keywords": ["의정부피부과"]}, {"id": "aa9aa26131", "name": "시흥배곧", "keywords": ["시흥배곧피부과", "시흥피부과", "배곧피부과"]}, {"id": "ad45d7ec84", "name": "분당미금", "keywords": ["분당미금피부과", "분당피부과", "미금피부과"]}, {"id": "0ddbb816b2", "name": "과천", "keywords": ["과천피부과"]}, {"id": "115166aa86", "name": "하남미사", "keywords": ["하남미사피부과", "하남피부과", "미사피부과"]}, {"id": "523647724c", "name": "화성봉담", "keywords": ["화성봉담피부과", "봉담피부과"]}, {"id": "1059b5491e", "name": "경기광주", "keywords": ["경기광주피부과"]}, {"id": "ffee12337a", "name": "천안", "keywords": ["천안피부과"]}, {"id": "1e783cc6f7", "name": "대전", "keywords": ["대전피부과"]}, {"id": "ad0d7d4bdf", "name": "광주", "keywords": ["광주피부과"]}, {"id": "27f5a39c16", "name": "목포", "keywords": ["목포피부과"]}, {"id": "604f78d405", "name": "대구", "keywords": ["대구피부과"]}, {"id": "25f016f2a4", "name": "부산", "keywords": ["부산피부과"]}, {"id": "d517715adc", "name": "창원", "keywords": ["창원피부과"]}];
   const OWN_BRAND = ["유앤아이의원", "유앤아이 의원", "유앤아이피부과", "유앤아이"];
-  const SERVER = 'PlayMCP';
-  const TOOLS = { blog: 'NaverSearch-search_blog', cafe: 'NaverSearch-search_cafearticle', place: 'NaverSearch-search_local' };
+  const SERVER = 'NaverSearch';   // claude.ai 커스텀 커넥터 이름 (mcp-naver/README.md)
+  const TOOLS = { blog: 'search_blog', cafe: 'search_cafearticle', place: 'search_local' };
   const TOP_N = 30, PLACE_N = 5;
   const TAB_LABEL = { blog: '블로그', cafe: '카페', place: '플레이스', manual: '수동확인' };
   const $ = (s) => document.querySelector(s);
@@ -166,7 +166,7 @@ h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
 
   // ---------- 저장소 ----------
   window.claude?.use('db').then((d) => { db = d; if (!db) { banner('공유 저장소에 연결되지 않아 신고 기록이 저장되지 않습니다. claude.ai에 로그인한 상태로 다시 열어 주세요.', 'err'); } subscribe(); });
-  window.claude?.use('mcp').then((m) => { mcp = m; if (!mcp) { banner('네이버 검색 커넥터를 쓸 수 없어 실행이 되지 않습니다. claude.ai 설정 → 커넥터에서 PlayMCP(네이버 검색)를 연결한 뒤 다시 열어 주세요.', 'err'); $('#run').disabled = true; } else checkTools(); });
+  window.claude?.use('mcp').then((m) => { mcp = m; if (!mcp) { banner('네이버 검색 커넥터를 쓸 수 없어 실행이 되지 않습니다. claude.ai 설정 → 커넥터에 NaverSearch 커스텀 커넥터를 추가한 뒤 다시 열어 주세요 (저장소 mcp-naver/README.md 참고).', 'err'); $('#run').disabled = true; } else checkTools(); });
 
   // 커넥터가 실제로 내놓는 도구 목록을 확인해, 네이버 검색 도구가 없으면 무엇이 있는지 보여 준다.
   async function checkTools(afterError) {
@@ -175,11 +175,11 @@ h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
       const srv = (r.servers || []).find((s) => s.server === SERVER);
       const names = srv ? srv.tools.map((t) => t.name) : [];
       const missing = Object.values(TOOLS).filter((t) => !names.includes(t));
-      if (!srv) { banner('PlayMCP 커넥터가 이 계정에 연결되어 있지 않습니다. claude.ai 설정 → 커넥터에서 PlayMCP 를 추가하세요.', 'err'); return; }
+      if (!srv) { banner('NaverSearch 커넥터가 이 계정에 연결되어 있지 않습니다. claude.ai 설정 → 커넥터 → 커스텀 커넥터 추가에서 이름을 NaverSearch 로 추가하세요 (mcp-naver/README.md).', 'err'); return; }
       if (srv.authStatus === 'unknown' && !afterError) return;   // 아직 허용 전이라 목록이 매니페스트 그대로임
       if (missing.length) {
-        banner(`PlayMCP 커넥터에 네이버 검색 도구(${missing.join(', ')})가 없습니다. 현재 커넥터에 있는 도구: ${names.length ? names.join(', ') : '(없음)'}. `
-          + 'playmcp.kakao.com 에 로그인해 "네이버 검색" MCP 를 내 목록에 추가(활성화)한 뒤, claude.ai 설정 → 커넥터에서 PlayMCP 를 끊었다가 다시 연결하고 이 페이지를 새로고침하세요.', 'err');
+        banner(`NaverSearch 커넥터에 도구(${missing.join(', ')})가 없습니다. 현재 커넥터에 있는 도구: ${names.length ? names.join(', ') : '(없음)'}. `
+          + 'Worker 가 최신 worker.js 로 배포됐는지, 커넥터 URL 이 /mcp/<ACCESS_TOKEN> 으로 끝나는지 확인하고 커넥터를 다시 연결하세요.', 'err');
       } else if (afterError) banner('');
     } catch (e) { if (afterError) banner('커넥터 도구 목록을 읽지 못했습니다: ' + describeError(e), 'err'); }
   }
@@ -273,11 +273,11 @@ h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
   }
   function describeError(e) {
     const c = e && e.code;
-    if (c === 'needs_reauth') return 'PlayMCP 커넥터 로그인이 만료됐습니다. claude.ai 설정 → 커넥터에서 다시 연결하세요.';
-    if (c === 'server_not_connected') return 'PlayMCP 커넥터가 연결되어 있지 않습니다. claude.ai 설정 → 커넥터에서 PlayMCP 를 추가하고 네이버 검색을 켜세요.';
-    if (c === 'not_in_manifest') return '이 페이지의 PlayMCP 사용을 허용하지 않았습니다. 새로고침 후 허용을 눌러 주세요.';
-    if (c === 'selection_required') return 'PlayMCP 커넥터가 여러 개라 선택이 필요합니다. 화면의 선택 창에서 하나를 고르세요.';
-    if (c === 'blocked_by_policy') return 'PlayMCP 커넥터에 이 검색 도구가 없거나 조직 정책으로 막혀 있습니다 (아래 안내 참고).';
+    if (c === 'needs_reauth') return 'NaverSearch 커넥터 로그인이 만료됐습니다. claude.ai 설정 → 커넥터에서 다시 연결하세요.';
+    if (c === 'server_not_connected') return 'NaverSearch 커넥터가 연결되어 있지 않습니다. claude.ai 설정 → 커넥터 → 커스텀 커넥터 추가 (이름 NaverSearch).';
+    if (c === 'not_in_manifest') return '이 페이지의 NaverSearch 사용을 허용하지 않았습니다. 새로고침 후 허용을 눌러 주세요.';
+    if (c === 'selection_required') return 'NaverSearch 커넥터가 여러 개라 선택이 필요합니다. 화면의 선택 창에서 하나를 고르세요.';
+    if (c === 'blocked_by_policy') return 'NaverSearch 커넥터에 이 검색 도구가 없거나 조직 정책으로 막혀 있습니다 (아래 안내 참고).';
     if (c === 'tool_error') return '검색 도구 오류: ' + (e.message || '').slice(0, 200);
     if (c === 'server_unavailable') return '네이버 검색 서버가 응답하지 않습니다. 잠시 후 다시 실행하세요.';
     return (c || '알 수 없는 오류') + (e && e.message ? ': ' + String(e.message).slice(0, 200) : '');
