@@ -7,10 +7,6 @@
   python run.py check-alive                        # 신고한 글이 삭제됐는지 확인
   python run.py pptx [--month 2026-09]             # 신고 기록 PPT 생성
   python run.py status
-
-  # 팀 대시보드 (웹 페이지)
-  python run.py export-dashboard --date 2026-09-22   # dashboard_날짜.json 다시 생성 (collect 가 자동 생성)
-  python run.py import-status status_2026-09-29.json # 대시보드 "상태 내보내기" 파일을 DB 에 반영 (pptx/check-alive 전에)
 """
 from __future__ import annotations
 
@@ -34,22 +30,6 @@ def cmd_collect(a, s, store):
     c = Counter(f.status for f in results)
     print(f"\n처리 {len(results)}건: " + ", ".join(f"{k} {v}" for k, v in c.items()))
     print(f"결과: {s.output_dir / run_date}")
-    _export_dash(s, store, run_date)
-
-
-def _export_dash(s, store, run_date):
-    from adwatch.dashboard import export_dashboard
-    p = export_dashboard(store, run_date, s.output_dir / run_date)
-    print(f"대시보드용 파일: {p}  ← 대시보드 페이지의 '수집 결과 가져오기'에 올리세요")
-
-
-def cmd_export_dash(a, s, store):
-    _export_dash(s, store, a.date)
-
-
-def cmd_import_status(a, s, store):
-    from adwatch.dashboard import import_status
-    print(f"{import_status(store, Path(a.path))}건 상태 갱신")
 
 
 def cmd_report(a, s, store):
@@ -128,8 +108,6 @@ def main(argv=None):
     sub.add_parser("check-alive").set_defaults(fn=cmd_alive)
     x = sub.add_parser("pptx"); x.add_argument("--month"); x.set_defaults(fn=cmd_pptx)
     sub.add_parser("status").set_defaults(fn=cmd_status)
-    ed = sub.add_parser("export-dashboard"); ed.add_argument("--date", required=True); ed.set_defaults(fn=cmd_export_dash)
-    ist = sub.add_parser("import-status"); ist.add_argument("path"); ist.set_defaults(fn=cmd_import_status)
 
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
